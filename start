@@ -1,0 +1,18 @@
+#!/bin/bash
+BASEDIR=$(dirname "$0")
+cd  "$BASEDIR"
+php=$(grep '^$phpCLIexec' params.php) 
+# вырезать то, что между кавычками иначе не получается
+i=$(expr index "$php" "\['"]\")	# позиция первого вхождения ' или "
+php=${php:$i}	# вырезать от i до конца строки
+i=$(expr index "$php" "\['"]\")
+php=${php:0:$i-1}
+if [ "${1: -1}" = "d" ]
+then 
+	echo "started inetAIS as daemon"
+	$php inetAIS.php > /dev/null &
+else 
+	echo "inetAIS started"
+	$php inetAIS.php
+fi
+
