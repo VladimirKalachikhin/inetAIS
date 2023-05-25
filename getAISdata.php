@@ -28,5 +28,6 @@ $info = curl_getinfo($ch);
 if (curl_errno($ch) || substr($info['http_code'],0,1) !== '2') {
 	echo "Не удалось получить координаты целей AIS                        \n";
 }
+//else echo gzdecode($AISlocations);	// это json. Ну, должен быть
 else echo serialize(json_decode(gzdecode($AISlocations),true));	// оно, конечно, странно serialize(json_decode, но для единообразия
 ?>

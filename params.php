@@ -8,11 +8,19 @@ $urlAISvessels = 'https://meri.digitraffic.fi/api/ais/v1/vessels';	// AIS target
 $AISinterestPoints = array(
 'Гельсингфорс' => array('latitude'=>60.1688,'longitude'=>24.939,'radius'=>5),
 'Ханко' => array('latitude'=>59.8222,'longitude'=>22.9491,'radius'=>5),
-'Або' => array('latitude'=>60.432,'longitude'=>22.2236,'radius'=>5)
+'Або' => array('latitude'=>60.432,'longitude'=>22.2236,'radius'=>5),
+'Stockholm' => array('latitude'=>59.37,'longitude'=>18.37,'radius'=>20)
 //'All' => array()
 );
 // период опроса источника информации о положении, сек.
 $getDataTimeout = 15;	// AIS locations data polling interval, sec.
+// Частота посылки информации клиентам, сек. AIS messages sending to clients intervals, sec.
+// 0 - с частотой получения. 0 - synchronously
+// Также указывает, какого рода информацию посылать: если не указать metainfo, то будут посылаться только координвты
+$AISintervals = array(
+'TPV' => 0,
+'metainfo' => 60*3
+);
 // Период актуальности данных.
 // Timeouts
 // время в секундах, в течении которого цель AIS сохраняется после получения от неё последней информации

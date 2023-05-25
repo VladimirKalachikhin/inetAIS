@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.0
+version 0.1
 */
 require_once("fCommon.php");
 require_once("fAIS.php");
@@ -15,7 +15,8 @@ if(!$inSocket) exit("Imposible to create inbound socket: $errstr\n");
 $instrumentsData = array('AIS'=>array());	//  собственно собираемые / кешируемые данные
 
 $getDataTimeout = min(min($gpsdProxyTimeouts['AIS']),$getDataTimeout);
-echo "Gets every $getDataTimeout sec.\n";
+echo "Gets data from AIS source every $getDataTimeout sec.\n";
+echo "Sends TPV every {$AISintervals['TPV']} sec, and other info every {$AISintervals['metainfo']} sec.\n";
 
 $rotateBeam = array("|","/","-","\\");
 $rBi = 0;
@@ -41,7 +42,7 @@ do{
 		echo($rotateBeam[$rBi]);	// вращающаяся палка
 		//echo " Изменилось $nStreams потоков. Недавно изменённых целей ";
 		echo " Connected ".(count($inboundConnects))." clients. Recently changed targets ";
-		if(count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);
+		if(count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
 		echo "$countrecievedMMSI.            \r";
 		$rBi++;
 		if($rBi>=count($rotateBeam)) $rBi = 0;
@@ -50,8 +51,6 @@ do{
 		$timeout = null;
 		echo "No inbound connections, waiting            \r";
 	}
-	$recievedMMSI = array();	// массив изменившихся целей вида array($mmsi => 1);
-	$newClient = false;
 		
 	//$timeout = $getDataTimeout;	// для целей тестирования
 	$nStreams = stream_select($inPipes,$outPipes,$errPipes,$timeout);
@@ -68,6 +67,7 @@ do{
 		}
 	}
 	// Чтение
+	$recievedMMSI = array();	// массив изменившихся целей вида array($mmsi)
 	if($inPipes) {
 		//echo "\n inPipes:";var_dump($inPipes);echo "\n";
 		//echo "\n externalProcesses:";var_dump($externalProcesses);echo "\n";
@@ -77,7 +77,6 @@ do{
 			//echo "\ninPipes pipe="; var_dump($pipe);echo "          \n";
 			if($pipe === $inSocket){	 //echo "во входной сокет кто-то постучался                                  \n";
 				$inboundConnects[] = stream_socket_accept($inSocket, -1);
-				$newClient = true;
 				continue;	// к следующему потоку
 			}
 			if(($procID = isExternalPipe($pipe,2))!==false){	// поток из stderr внешнего процесса
@@ -94,6 +93,7 @@ do{
 				$externalProcesses[$procID]['inString'] .= trim(stream_get_contents($pipe));
 				if(feof($pipe)) {
 					$AISvessels = unserialize($externalProcesses[$procID]['inString']);
+					//$AISvessels = json_decode($externalProcesses[$procID]['inString'],true);
 					//echo "AISvessels=";print_r($AISvessels);echo ";\n";
 					if(!is_array($AISvessels)){
 						echo "The problem '{$externalProcesses[$procID]['inString']}' with external process $procID             \n";
@@ -101,10 +101,11 @@ do{
 					$toDie[] = $procID;
 					// updInstrumentsData понимает как набор с координатами, так и набор с метаинформацией
 					if($AISvessels) {
-						$recievedMMSI = updInstrumentsData($AISvessels)+$recievedMMSI;	// массив со строковыми ключами, представимыми как число
+						$recievedMMSI = array_unique(array_merge($recievedMMSI,updInstrumentsData($AISvessels)));	// плоский массив
 						//echo "имеется целей AIS в instrumentsData ".count($instrumentsData['AIS'])."\n";
-						$noMetaData = chkFreshOfData();	// Проверим актуальность данных и получим список тех, для кого нет полной информации
+						list($noMetaData,$deletedMMSI) = chkFreshOfData();	// Проверим актуальность данных и получим список тех, для кого нет полной информации. При этом в $recievedMMSI могли бы остаться mmsi удалённых в этом процессе объектов
 						//echo "осталось свежих целей AIS в instrumentsData ".count($instrumentsData['AIS'])."\n";
+						$recievedMMSI = array_diff($recievedMMSI,$deletedMMSI);	// теперь в $recievedMMSI mmsi изменённых целей AIS, оставшихся в $instrumentsData
 					}
 					$AISvessels = '';
 				}
@@ -130,9 +131,6 @@ do{
 			//echo "Get AIS targets for $label point                 \n";
 			openProcess("$phpCLIexec getAISdata.php",serialize($poi));
 		}
-		$recievedMMSI = array_intersect_key($recievedMMSI,$instrumentsData['AIS']);	// теперь в $recievedMMSI mmsi изменённых целей AIS, оставшихся в $instrumentsData, как КЛЮЧИ!
-		//echo "instrumentsData=";print_r($instrumentsData);
-		//echo "recievedMMSI:";print_r($recievedMMSI);
 		if($noMetaData and !is_resource($externalProcesses['getMetaDataProcess']['process'])){	// не запущен процесс получения метаданных
 			echo "Has ".count($noMetaData)." AIS targets without full metadata                 \n";
 			//echo "noMetaData=";print_r($noMetaData);
@@ -141,9 +139,8 @@ do{
 		}
 	}
 	// Запись
-	if($newClient) $mesNMEA = array_merge($mesNMEA,getAISData());	// есть новый клиент, добавим в очередь сообщений всё. Очередь сообщений -- плоский массив. В результате при подключении каждого нового клиента все получат полный комплект информации. Может, оно и хорошо?
 	if($inboundConnects and $recievedMMSI){	// есть клиенты и есть, что передавать
-		$mesNMEA = array_merge($mesNMEA,getAISData(array_intersect_key($instrumentsData["AIS"],$recievedMMSI)));
+		$mesNMEA = array_merge($mesNMEA,getAISData(array_intersect(array_keys($instrumentsData["AIS"]),$recievedMMSI)));
 		//echo "$mesNMEA\n"; 
 	};
 	sendAIS();

@@ -33,5 +33,6 @@ foreach($noMetaData as $mmsi){
 }
 curl_close($ch);
 ob_end_flush();
+//echo json_encode($metaDataS);
 echo serialize($metaDataS);
 ?>
