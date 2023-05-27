@@ -1,4 +1,4 @@
-<?php
+<?php  ob_start();
 /* a:3:{s:8:"latitude";d:60.1688;s:9:"longitude";d:24.939;s:6:"radius";i:5;}
 */
 require_once("params.php");
@@ -25,8 +25,9 @@ curl_setopt($ch, CURLOPT_URL,$url);
 $AISlocations = curl_exec($ch);
 $info = curl_getinfo($ch);
 //print_r($info);
+ob_end_clean();
 if (curl_errno($ch) || substr($info['http_code'],0,1) !== '2') {
-	echo "Не удалось получить координаты целей AIS                        \n";
+	echo "Failed to get coordinates of AIS targets\n";
 }
 //else echo gzdecode($AISlocations);	// это json. Ну, должен быть
 else echo serialize(json_decode(gzdecode($AISlocations),true));	// оно, конечно, странно serialize(json_decode, но для единообразия

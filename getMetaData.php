@@ -26,13 +26,13 @@ foreach($noMetaData as $mmsi){
 	//print_r($info);
 	$info = curl_getinfo($ch);
 	if (!$metadata or curl_errno($ch) or substr($info['http_code'],0,1) !== '2') {
-		echo "Не удалось получить метаданные для mmsi $mmsi\n";
+		echo "Failed to get metadata for mmsi $mmsi\n";
 		continue;
 	}
 	$metaDataS[] = json_decode($metadata,true);
 }
 curl_close($ch);
-ob_end_flush();
+ob_end_clean();
 //echo json_encode($metaDataS);
 echo serialize($metaDataS);
 ?>
