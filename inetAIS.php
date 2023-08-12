@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2
+version 0.2.1
 */
 require_once("fCommon.php");
 require_once("fAIS.php");
@@ -46,13 +46,16 @@ do{
 		//echo " Изменилось $nStreams потоков. Недавно изменённых целей ";
 		echo " Connected ".(count($inboundConnects))." clients. Recently changed targets ";
 		if(count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
-		echo "$countrecievedMMSI.            \r";
+		echo "$countrecievedMMSI.";
+		if($AISinterestPoints['self']) echo " ".round($AISinterestPoints['self']['latitude'],4).", ".round($AISinterestPoints['self']['longitude'],4)."   ";
+		else echo "            ";
+		echo "\r";
 		$rBi++;
 		if($rBi>=count($rotateBeam)) $rBi = 0;
 	}
 	else {
 		$timeout = null;
-		echo "No inbound connections, waiting            \r";
+		echo "No inbound connections, waiting on $inetAIShost:$inetAISport   \r";
 	}
 		
 	//$timeout = $getDataTimeout;	// для целей тестирования
@@ -160,9 +163,9 @@ do{
 	// Получение координат подвижной точки (собственных, ага)
 	// Их нужно получать с отдельным интервалом, потому что интервал $getDataTimeout
 	// может быть большим, и свои координаты всегда будут не в той точке
-	if((time()-$lastGetTPV)>=$getTPVtmeout) {	// спрашивать координаты не чаще указанного, а не каждый оборот
+	if($netAISgpsdHost and (time()-$lastGetTPV)>=$getTPVtmeout) {	// спрашивать координаты не чаще указанного, а не каждый оборот
 		$lastGetTPV = time();
-		if($netAISgpsdHost and !is_resource($externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
+		if(!is_resource($externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
 			//echo "Запускаем процесс получения координат         \n";
 			openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
 		}

@@ -6,9 +6,9 @@ $urlAISvessels = 'https://meri.digitraffic.fi/api/ais/v1/vessels';	// AIS target
 // Массив точек, в которых показывается обстановка AIS, radius - в км.
 // AIS POI array, radius is in km.
 $AISinterestPoints = array(
-'Гельсингфорс' => array('latitude'=>60.1688,'longitude'=>24.939,'radius'=>5),
-'Ханко' => array('latitude'=>59.8222,'longitude'=>22.9491,'radius'=>5),
-'Або' => array('latitude'=>60.432,'longitude'=>22.2236,'radius'=>5),
+//'Гельсингфорс' => array('latitude'=>60.1688,'longitude'=>24.939,'radius'=>5),
+//'Ханко' => array('latitude'=>59.8222,'longitude'=>22.9491,'radius'=>5),
+//'Або' => array('latitude'=>60.432,'longitude'=>22.2236,'radius'=>5),
 //'Stockholm' => array('latitude'=>59.37,'longitude'=>18.37,'radius'=>20)
 //'All' => array()
 );
