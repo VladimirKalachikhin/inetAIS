@@ -52,8 +52,8 @@ $inetAISport = "3800";
 // AIS moving POI TPV source. For own vehicle, for example.
 // If no - no AIS data for moving point.
 // gpsd
-$netAISgpsdHost = 'localhost';
-$netAISgpsdPort = 2947;
+//$netAISgpsdHost = 'localhost';
+//$netAISgpsdPort = 2947;
 //$netAISgpsdPort = 3838; 	// gpsdPROXY
 // Signal K
 //$netAISgpsdHost = array(['localhost',3000]);

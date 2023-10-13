@@ -30,6 +30,7 @@ $errPipes = array();		// массив ошибочных потоков
 $mesNMEA = array();	// массив сообщений AIS для отправки клиентам, воспринимается как очередь
 $lastGetFromSource = 0;
 $lastGetTPV = 0;
+$countrecievedMMSI = 0;
 do{
 	$inPipes = $inboundConnects;	// будем слушать уже открытые потоки
 	$inPipes[] = $inSocket;	// будем слушать входной сокет
@@ -47,7 +48,7 @@ do{
 		echo " Connected ".(count($inboundConnects))." clients. Recently changed targets ";
 		if(count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
 		echo "$countrecievedMMSI.";
-		if($AISinterestPoints['self']) echo " ".round($AISinterestPoints['self']['latitude'],4).", ".round($AISinterestPoints['self']['longitude'],4)."   ";
+		if(@$AISinterestPoints['self']) echo " ".round($AISinterestPoints['self']['latitude'],4).", ".round($AISinterestPoints['self']['longitude'],4)."   ";
 		else echo "            ";
 		echo "\r";
 		$rBi++;
@@ -97,7 +98,7 @@ do{
 			}
 			if(($procID = isExternalPipe($pipe,1))!==false){	// поток из stduot внешнего процесса
 				//echo "внешний процесс $procID что-то вернул                           \n";
-				$externalProcesses[$procID]['inString'] .= trim(stream_get_contents($pipe));
+				@$externalProcesses[$procID]['inString'] .= trim(stream_get_contents($pipe));
 				if(feof($pipe)) {
 					$extData = unserialize($externalProcesses[$procID]['inString']);
 					//$extData = json_decode($externalProcesses[$procID]['inString'],true);
@@ -140,7 +141,8 @@ do{
 		// Поскольку каждый внешний процесс имеет несколько потоков, нужно прочесть все потоки
 		// прежде чем убивать внешний процесс и его потоки.
 		// После прочтения всех потоков убиваем те внешние процессы, на которые указали
-		array_walk(array_unique($toDie),'closeProcess');
+		$toDie = array_unique($toDie);
+		array_walk($toDie,'closeProcess');
 		$externalProcesses = array_merge($externalProcesses);	// перенумеруем процессы с начала, чтобы их номера не увеличивались бесконечно
 	}
 	
@@ -165,7 +167,7 @@ do{
 	// может быть большим, и свои координаты всегда будут не в той точке
 	if($netAISgpsdHost and (time()-$lastGetTPV)>=$getTPVtmeout) {	// спрашивать координаты не чаще указанного, а не каждый оборот
 		$lastGetTPV = time();
-		if(!is_resource($externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
+		if(!is_resource(@$externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
 			//echo "Запускаем процесс получения координат         \n";
 			openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
 		}
