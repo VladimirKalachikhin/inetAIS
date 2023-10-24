@@ -3,16 +3,25 @@
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
 version 0.2.1
+
+Если в конфиге не указать входящее соединение ($inetAIShost), то демон будет пытаться
+отдать данные gpsdPROXY.
 */
 require_once("fCommon.php");
 require_once("fAIS.php");
+require_once("fgpsdPROXY.php");
 require_once("params.php");
 
 $getTPVtmeout = round(0.75*$getDataTimeout);	// получать координаты подвижной точки не чаще, чем сек.
 
-// Входящее соединение для клиентов
-$inSocket = stream_socket_server("tcp://$inetAIShost:$inetAISport",$errno,$errstr);
-if(!$inSocket) exit("Imposible to create inbound socket: $errstr\n");
+$inSocket=null; $gpsdPROXYsocket=null;
+if($inetAIShost){	// Входящее соединение для клиентов
+	$inSocket = stream_socket_server("tcp://$inetAIShost:$inetAISport",$errno,$errstr);
+	if(!$inSocket) exit("Imposible to create inbound socket: $errstr\n");
+}
+else {	// входящих соединений не будет, а будет соединение с gpsdPROXY для передачи данных
+	$gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
+}
 
 $instrumentsData = array('AIS'=>array());	//  собственно собираемые / кешируемые данные
 
@@ -33,34 +42,46 @@ $lastGetTPV = 0;
 $countrecievedMMSI = 0;
 do{
 	$inPipes = $inboundConnects;	// будем слушать уже открытые потоки
-	$inPipes[] = $inSocket;	// будем слушать входной сокет
+	if($inSocket) $inPipes[] = $inSocket;	// будем слушать входной сокет
 	foreach($externalProcesses as $process){	// для каждого запущенного внешнего процесса
 		$inPipes[] = $process["pipes"][1]; // будем слушать поток его стандартного вывода (чисто для памяти: там лежат переменные, которые являются ссылками на ресурсы)
 		$inPipes[] = $process["pipes"][2]; // будем слушать поток его stderr, потому что внешние процессы у нас -- скрипты php, и stderr собственно скрипта выводится в stdout php
 	}
 	$errPipes = $inboundConnects;	// проверять будем только клиентские потоки, потому что см. выше
 
-	if($inboundConnects) {
+	if($inboundConnects or $gpsdPROXYsocket) {
 		$timeout = min($getDataTimeout,$getTPVtmeout);
 		
 		echo($rotateBeam[$rBi]);	// вращающаяся палка
 		//echo " Изменилось $nStreams потоков. Недавно изменённых целей ";
-		echo " Connected ".(count($inboundConnects))." clients. Recently changed targets ";
-		if(count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
+		if($gpsdPROXYsocket) echo " Connecting from gpsdPROXY. ";
+		else echo " Connected ".(count($inboundConnects))." clients. ";
+		echo "Recently changed targets ";
+		if(@count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
 		echo "$countrecievedMMSI.";
-		if(@$AISinterestPoints['self']) echo " ".round($AISinterestPoints['self']['latitude'],4).", ".round($AISinterestPoints['self']['longitude'],4)."   ";
+		if(@$AISinterestPoints['self']) echo " pos:".round($AISinterestPoints['self']['latitude'],4).",".round($AISinterestPoints['self']['longitude'],4)."   ";
 		else echo "            ";
 		echo "\r";
 		$rBi++;
 		if($rBi>=count($rotateBeam)) $rBi = 0;
 	}
 	else {
+		// если у нас нет ни одного сокета (нет клиентов, и нет входящего соединения)
+		// то stream_select не будет ждать ни при каком значении timeout. Что баг.
+		// А в PHP8 -- это вообще Fatal error. Казлы.
+		// Поэтому при отсутствии входящих соединений и соединения с gpsdPROXY 
+		// используем sleep, чтобы оно, во-первых, в основном стояло, а во-вторых, время от времени
+		// пыталось соединиться с gpsdPROXY.
 		$timeout = null;
 		echo "No inbound connections, waiting on $inetAIShost:$inetAISport   \r";
 	}
 		
 	//$timeout = $getDataTimeout;	// для целей тестирования
-	$nStreams = stream_select($inPipes,$outPipes,$errPipes,$timeout);
+	//echo "\ntimeout=$timeout; inPipes:"; print_r($inPipes); echo "outPipes:"; print_r($outPipes);
+	if($inPipes or $outPipes or $errPipes){	// это концептуально неправильно, но будет работать в PHP8. Правильный код с проверкой $nStreams===null в PHP8 работать не будет
+		$nStreams = stream_select($inPipes,$outPipes,$errPipes,$timeout);
+	}
+	else sleep($getDataTimeout);	// нет ни входящих, ни сокета для подключения, ни gpsdPROXY
 	
 	// Проблемы. С нашей стороны?
 	if($errPipes) {
@@ -100,9 +121,11 @@ do{
 				//echo "внешний процесс $procID что-то вернул                           \n";
 				@$externalProcesses[$procID]['inString'] .= trim(stream_get_contents($pipe));
 				if(feof($pipe)) {
+					//if($procID==='getTPVprocess') {echo "getTPVprocess data:";print_r($externalProcesses[$procID]);echo ";\n";}
 					$extData = unserialize($externalProcesses[$procID]['inString']);
 					//$extData = json_decode($externalProcesses[$procID]['inString'],true);
 					//echo "extData=";print_r($extData);echo ";\n";
+					//if($procID==='getTPVprocess') {echo "getTPVprocess extData=";print_r($extData);echo ";\n";}
 					$toDie[] = $procID;	// в любом случае этот процесс надо убить
 					if(!is_array($extData)){
 						if($externalProcesses[$procID]['inString'] == 'N;') {}	// оно возвращает это, если в указанной области нет целей AIS
@@ -147,40 +170,52 @@ do{
 	}
 	
 	// Выполнение
-	if((time()-$lastGetFromSource)>=$getDataTimeout) {	// спрашивать данные у источника не чаще указанного, а не каждый оборот
-		$lastGetFromSource = time();
-		// 	Получение координат целей AIS
-		foreach($AISinterestPoints as $label => $poi){	// опросим все точки
-			//echo "Get AIS targets for $label point                 \n"; print_r($poi);
-			openProcess("$phpCLIexec getAISdata.php",serialize($poi));
+	// Поскольку для реализации отдачи в gpsdPROXY оно оборачивается и при отсутствии кому отдавать,
+	// организуем запросы наружу только при наличии получателя внутри
+	if($inSocket or $gpsdPROXYsocket){
+		if((time()-$lastGetFromSource)>=$getDataTimeout) {	// спрашивать данные у источника не чаще указанного, а не каждый оборот
+			$lastGetFromSource = time();
+			// 	Получение координат целей AIS
+			foreach($AISinterestPoints as $label => $poi){	// опросим все точки
+				//echo "Get AIS targets for $label point                 \n"; print_r($poi);
+				openProcess("$phpCLIexec getAISdata.php",serialize($poi));
+			}
+			// Получение метаданных
+			if($noMetaData and !is_resource($externalProcesses['getMetaDataProcess']['process'])){	// не запущен процесс получения метаданных
+				//echo "Has ".count($noMetaData)." AIS targets without full metadata                 \n";
+				//echo "noMetaData=";print_r($noMetaData);
+				openProcess("$phpCLIexec getMetaData.php",serialize($noMetaData),'getMetaDataProcess');
+				$noMetaData = null;
+			}
 		}
-		// Получение метаданных
-		if($noMetaData and !is_resource($externalProcesses['getMetaDataProcess']['process'])){	// не запущен процесс получения метаданных
-			//echo "Has ".count($noMetaData)." AIS targets without full metadata                 \n";
-			//echo "noMetaData=";print_r($noMetaData);
-			openProcess("$phpCLIexec getMetaData.php",serialize($noMetaData),'getMetaDataProcess');
-			$noMetaData = null;
-		}
-	}
-	// Получение координат подвижной точки (собственных, ага)
-	// Их нужно получать с отдельным интервалом, потому что интервал $getDataTimeout
-	// может быть большим, и свои координаты всегда будут не в той точке
-	if($netAISgpsdHost and (time()-$lastGetTPV)>=$getTPVtmeout) {	// спрашивать координаты не чаще указанного, а не каждый оборот
-		$lastGetTPV = time();
-		if(!is_resource(@$externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
-			//echo "Запускаем процесс получения координат         \n";
-			openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
+		// Получение координат подвижной точки (собственных, ага)
+		// Их нужно получать с отдельным интервалом, потому что интервал $getDataTimeout
+		// может быть большим, и свои координаты всегда будут не в той точке
+		if($netAISgpsdHost and (time()-$lastGetTPV)>=$getTPVtmeout) {	// спрашивать координаты не чаще указанного, а не каждый оборот
+			$lastGetTPV = time();
+			if(!is_resource(@$externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
+				//echo "Запускаем процесс получения координат         \n";
+				openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
+			}
 		}
 	}
 	
 	// Запись
-	if($inboundConnects and $recievedMMSI){	// есть клиенты и есть, что передавать
-		$mesNMEA = array_merge($mesNMEA,getAISData(array_intersect(array_keys($instrumentsData["AIS"]),$recievedMMSI)));
-		//echo "$mesNMEA\n"; 
-	};
-	sendAIS();
+	if($inetAIShost) {	//есть (должно быть) входящее соединение для клиентов
+		if($inboundConnects and $recievedMMSI){	// есть клиенты и есть, что передавать
+			$mesNMEA = array_merge($mesNMEA,getAISData(array_intersect(array_keys($instrumentsData["AIS"]),$recievedMMSI)));
+			//echo "$mesNMEA\n"; 
+		};
+		sendAIS();	// Отправляет одно первое сообщение AIS из массива $mesNMEA в каждый из потоков в массиве $сonnects
+	}
+	else {	// нет входящего соединения, всё нужно отсылать gpsdPROXY
+		if(!$gpsdPROXYsocket) $gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
+		if($gpsdPROXYsocket) {
+			//echo "\n отсылаем в GPSDPROXY\n";
+			sendAIStogpsdPROXY();
+		}
+	}
 	
-	END_LOOP:
 }while(true);
 curl_close($ch);
 ?>

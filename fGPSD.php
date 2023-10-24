@@ -1,8 +1,13 @@
 <?php
-
+/*
+askGPSD	получает информацию от gpsd (или gpsdPROXY) методом ?POLL;
+getPosAndInfo	Собирает информацию с подключенных датчиков ГПС, etc. - что умеет gpsd или SignalK
+getPosAndInfoFromGPSD
+getPosAndInfoFromSignalK
+*/
 $SEEN_GPS = 0x01; $SEEN_AIS = 0x08;
 
-function askGPSD($host='localhost',$port=2947,$dataType=0x01) {
+function askGPSD($host='127.0.0.1',$port=2947,$dataType=0x01) {			// PHP Fatal error:  Constant expression contains invalid operations
 /* Возвращает всю информацию классов gpsd TPV, AIS или и то и то в виде ассоциированного массива
 если $host и $port указывают на реальный gpsd -- то AIS, разумеется, не будет, ибо POLL.
 если же это gpsdPROXY -- AIS будет
@@ -13,24 +18,32 @@ global $spatialProvider;	// результат попытки обнаружен
 //echo "\n\nНачали. dataType=$dataType;host:$host:$port<br>\n";
 $gpsd  = @stream_socket_client('tcp://'.$host.':'.$port,$errno,$errstr); // открыть сокет 
 $res = @fwrite($gpsd, "\n\n"); 	// если там gpsdPROXY, он не пришлёт VERSION при открытии соединения
-//echo "res=$res; ";var_dump($gpsd);echo "<br>\n";
+//echo "[askGPSD] res=$res; ";var_dump($gpsd);echo "\n";
 if(($res === FALSE) or !$gpsd) return "no GPSD: $errstr";
 //stream_set_blocking($gpsd,FALSE); 	// установим неблокирующий режим чтения Что-то с ним не так...
-//echo "Socket to gpsd opened, handshaking<br>\n";
+//echo "Socket to gpsd opened, handshaking\n";
 
 $controlClasses = array('VERSION','DEVICES','DEVICE','WATCH');
 $WATCHsend = FALSE; $POLLsend = FALSE;
 do { 	// при каскадном соединении нескольких gpsd заголовков может быть много
 	$zeroCount = 0;	// счётчик пустых строк
-	do {	// крутиться до принятия строки или до 10 пустых строк
-		$buf = fgets($gpsd); 
-		//echo "<br>buf:<br>|".strtr($buf,"\r\n",'?!')."|<br>\n";
-		if($buf === FALSE) { 	// gpsd умер
+	$bufLength = 1048576; 	// 1048576 bytes == 1Mb
+	$buf = '';
+	do {	// крутиться до принятия всего сообщения или до 10 пустых строк
+		$inbuf = fgets($gpsd,$bufLength); 
+		//echo "\n[askGPSD] получено buf:<br>|".strtr($buf,"\r\n",'?!')."|<br>\n";
+		if($inbuf === FALSE) { 	// gpsd умер
 			@socket_close($gpsd);
 			$msg = "Failed to read data from gpsd";
-			echo "$msg<br>\n"; 
+			echo "$msg\n"; 
 			return $msg;
-		}
+		};
+		$buf .= $inbuf;
+		// Если прислали больше, чем выделен буфер.
+		// Например, gpsdPROXY пришлёт и данные AIS, а это может быть много.
+		// С другой стороны, при таком подходе кто-то может прислать больше, чем есть памяти, и всё сломается;
+		// а если читать только один буфер -- никогда не будет принято больше одного буфера.
+		//if(mb_strlen($inbuf)==$bufLength) continue;
 		$buf = trim($buf);
 		if(!$buf) $zeroCount++;
 	}while(!$buf and $zeroCount<10);
@@ -38,41 +51,45 @@ do { 	// при каскадном соединении нескольких gps
 	if($buf === null) { 	// прислали странное, это не gpsd?
 	    @socket_close($gpsd);
 		$msg = "Recieved not JSON. Is this gpsd?";
-		echo "$msg<br>\n"; 
+		echo "$msg\n"; 
 		return $msg;
 	}
-	//echo "<br>buf: ";echo "<pre>"; print_r($buf); echo "</pre>\n";
+	//echo "\n[askGPSD]buf: ";echo "<pre>"; print_r($buf); echo "</pre>\n";
 	switch($buf['class']){
 	case 'VERSION': 	// можно получить от slave gpsd посде WATCH
 		if(!$WATCHsend) { 	// команды WATCH ещё не посылали
-			$res = fwrite($gpsd, '?WATCH={"enable":true};'."\n\n"); 	// велим демону включить устройства
+			$msg = '?WATCH={"enable":true}'."\n\n";
+			// Без указания длины сообщения gpsd не воспринимает. Кто виноват?
+			// Он и с указанием не воспринимает....
+			$res = fwrite($gpsd, $msg, strlen($msg)); 	// велим демону включить устройства
 			if($res === FALSE) { 	// gpsd умер
 				socket_close($gpsd);
 				$msg =  "Failed to send WATCH to gpsd: $errstr";
-				echo "$msg<br>\n"; 
+				echo "$msg\n"; 
 				return $msg;
 			}
 			$WATCHsend = TRUE;
 			$spatialProvider = $buf['release'];
-			//echo "Send TURN ON<br>\n";
+			echo "Send TURN ON message: |$msg|\n";
 		}
 		break;
 	case 'DEVICES': 	// соберём подключенные устройства со всех gpsd, включая slave
-		//echo "Received DEVICES<br>\n"; //
+		echo "Received DEVICES\n"; //
 		$devicePresent = array();
 		foreach($buf["devices"] as $device) {
 			if($device['flags']&$dataType) $devicePresent[] = $device['path']; 	// список требуемых среди обнаруженных и понятых устройств.
 		}
 		break;
 	case 'DEVICE': 	// здесь информация о подключенных slave gpsd, т.е., общая часть path в имени устройства. Полезно для опроса конкретного устройства, но нам не надо. 
-		//echo "Received about slave DEVICE<br>\n"; //
+		echo "Received about slave DEVICE<br>\n"; //
 		break;
 	case 'WATCH': 	// 
-		//echo "Received WATCH<br>\n"; //
+		echo "Received WATCH\n"; //
 		//print_r($gpsdWATCH); //
 		if(!$POLLsend) { 	// к slave gpsd POLL не отсылают? Тогда шлём POLL после первого WATCH
 			//echo "Sending POLL<br>\n";
-			$res = fwrite($gpsd, '?POLL;'."\n\n"); 	// запросим данные
+			$msg = '?POLL;'."\n\n";
+			$res = fwrite($gpsd, $msg, strlen($msg)); 	// запросим данные
 			if($res === FALSE) { 	// gpsd умер
 				socket_close($gpsd);
 				$msg =  "Failed to send POLL to gpsd: $errstr";
@@ -85,12 +102,13 @@ do { 	// при каскадном соединении нескольких gps
 	}
 	
 }while(!$buf or in_array($buf['class'],$controlClasses));
-//echo "buf: ";echo "<pre>"; print_r($buf); echo "</pre>\n";
+//echo "\n[askGPSD] buf: "; print_r($buf);
 
 if(!$devicePresent) return 'no required devices present';
 //echo "devicePresent: <pre>\n"; print_r($devicePresent); echo "</pre><br>\n";
 
-@fwrite($gpsd, '?WATCH={"enable":false};'."\n"); 	// велим демону выключить устройства
+$msg = '?WATCH={"enable":false};'."\n\n";
+@fwrite($gpsd, $msg, strlen($msg)); 	// велим демону выключить устройства
 fclose($gpsd);
 //echo "Закрыт сокет\n";
 
