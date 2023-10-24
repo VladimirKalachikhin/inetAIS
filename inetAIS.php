@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.1
+version 0.2.2
 
 Если в конфиге не указать входящее соединение ($inetAIShost), то демон будет пытаться
 отдать данные gpsdPROXY.

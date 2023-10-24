@@ -44,7 +44,7 @@ $gpsdProxyTimeouts = array(
 )
 );
 // Параметры подключения клиентов 
-//$inetAIShost = "0.0.0.0";	// Clients connection setting
+$inetAIShost = "0.0.0.0";	// Clients connection setting
 $inetAISport = "3800";
 
 // Источник сведений о координатах подвижной точки получения обстановки AIS.
