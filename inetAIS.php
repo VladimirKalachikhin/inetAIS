@@ -18,9 +18,11 @@ $inSocket=null; $gpsdPROXYsocket=null;
 if($inetAIShost){	// Входящее соединение для клиентов
 	$inSocket = stream_socket_server("tcp://$inetAIShost:$inetAISport",$errno,$errstr);
 	if(!$inSocket) exit("Imposible to create inbound socket: $errstr\n");
+	echo "inbound connections are expected on tcp://$inetAIShost:$inetAISport\n";
 }
 else {	// входящих соединений не будет, а будет соединение с gpsdPROXY для передачи данных
 	$gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
+	echo "no inbound connections, the gpsdPROXY feeder only";
 }
 
 $instrumentsData = array('AIS'=>array());	//  собственно собираемые / кешируемые данные

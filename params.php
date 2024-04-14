@@ -7,10 +7,10 @@ $urlAISvessels = 'https://meri.digitraffic.fi/api/ais/v1/vessels';	// AIS target
 // AIS POI array, radius is in km.
 $AISinterestPoints = array(
 //'Гельсингфорс' => array('latitude'=>60.1688,'longitude'=>24.939,'radius'=>5),
-'Ханко' => array('latitude'=>59.8222,'longitude'=>22.9491,'radius'=>5),
+//'Ханко' => array('latitude'=>59.8222,'longitude'=>22.9491,'radius'=>5),
 //'Або' => array('latitude'=>60.432,'longitude'=>22.2236,'radius'=>5),
 //'Stockholm' => array('latitude'=>59.37,'longitude'=>18.37,'radius'=>20)
-//'All' => array()
+'All' => array()
 );
 // Радиус получения обстановки AIS вокруг точки с изменяющимися координатами, километры
 $movingPOIradius = 5;	// AIS moving POI radius, km
@@ -52,9 +52,9 @@ $inetAISport = "3800";
 // AIS moving POI TPV source. For own vehicle, for example.
 // If no - no AIS data for moving point.
 // gpsd
-$netAISgpsdHost = 'localhost';
+//$netAISgpsdHost = 'localhost';
 //$netAISgpsdPort = '2947';
-$netAISgpsdPort = '3838'; 	// gpsdPROXY
+//$netAISgpsdPort = '3838'; 	// gpsdPROXY
 // Signal K
 //$netAISgpsdHost = array(['localhost',3000]);
 //$netAISgpsdPort = null;

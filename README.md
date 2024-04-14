@@ -1,4 +1,5 @@
-# inetAIS daemon [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
+[По русски](README.ru-RU.md)
+# inetAIS daemon [![License: CC BY-NC-SA 4.0](screenshots/Cc-by-nc-sa_icon.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en)
 Broadcast to LAN of the AIS messages from [digitraffic.fi](https://www.digitraffic.fi/en/marine-traffic/ais/) as NMEA 0183 AIS flow. For demo and tests purposes.  
 
 We strongly do not recommend using this software  as a replacement of real AIS on the boat. First of all, because of the [declared restrictions](https://www.digitraffic.fi/en/marine-traffic/ais/), secondly, because of the data delay reaching minutes.
