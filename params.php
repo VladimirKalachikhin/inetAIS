@@ -13,7 +13,7 @@ $AISinterestPoints = array(
 'All' => array()
 );
 // Радиус получения обстановки AIS вокруг точки с изменяющимися координатами, километры
-$movingPOIradius = 5;	// AIS moving POI radius, km
+$movingPOIradius = 10;	// AIS moving POI radius, km
 
 // период опроса источника информации о положении, сек.
 $getDataTimeout = 15;	// AIS locations data polling interval, sec.

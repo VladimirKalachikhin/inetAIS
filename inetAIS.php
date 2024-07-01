@@ -2,11 +2,12 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.2
+version 0.2.3
 
 Если в конфиге не указать входящее соединение ($inetAIShost), то демон будет пытаться
 отдать данные gpsdPROXY.
 */
+chdir(__DIR__); // задаем директорию выполнение скрипта
 require_once("fCommon.php");
 require_once("fAIS.php");
 require_once("fgpsdPROXY.php");
@@ -113,7 +114,7 @@ do{
 			if(($procID = isExternalPipe($pipe,2))!==false){	// поток из stderr внешнего процесса
 				$externalProcesses[$procID]['inString'] .= stream_get_contents($pipe);
 				if(feof($pipe)) {
-					echo "The problem {$externalProcesses[$procID]['inString']} with external process $procID              \n";
+					echo "The process error {$externalProcesses[$procID]['inString']} on external process $procID              \n";
 					//echo "Проблема с внешним процессом $procID              \n";
 					$toDie[] = $procID;
 				}
@@ -126,7 +127,7 @@ do{
 					//if($procID==='getTPVprocess') {echo "getTPVprocess data:";print_r($externalProcesses[$procID]);echo ";\n";}
 					$extData = unserialize($externalProcesses[$procID]['inString']);
 					//$extData = json_decode($externalProcesses[$procID]['inString'],true);
-					//echo "extData=";print_r($extData);echo ";\n";
+					//echo "\nextData=";print_r($extData);echo ";\n";
 					//if($procID==='getTPVprocess') {echo "getTPVprocess extData=";print_r($extData);echo ";\n";}
 					$toDie[] = $procID;	// в любом случае этот процесс надо убить
 					if(!is_array($extData)){
@@ -136,7 +137,7 @@ do{
 						continue;	// к следующему потоку
 					}
 					elseif($extData['error']){
-						echo "The problem '{$extData['error']}' with external process $procID             \n";
+						echo "The error '{$extData['error']}' on external process $procID             \n";
 						continue;	// к следующему потоку
 					}
 					// updInstrumentsData понимает как набор с координатами, так и набор с метаинформацией
