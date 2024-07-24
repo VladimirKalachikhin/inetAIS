@@ -10,8 +10,8 @@ version 0.
 ## Features
 - Broadcast of AIS targets for one or more user defined points.
 - Broadcast of all known digitraffic.fi AIS targets.
-- Broadcast of AIS targets for current position.  
-Position can be obtained from [gpsd](https://gpsd.io/), [gpsdPROXY](https://github.com/VladimirKalachikhin/gpsdPROXY) or from [SignalK](https://signalk.org/).
+- Broadcast of AIS targets for current position. Position can be obtained from [gpsd](https://gpsd.io/), [gpsdPROXY](https://github.com/VladimirKalachikhin/gpsdPROXY) or from [SignalK](https://signalk.org/).
+- Direct send data to [gpsdPROXY](https://github.com/VladimirKalachikhin/gpsdPROXY).  
 
 ## Compatibility
 Any device/software capable of receiving NMEA 0183 messages via LAN.  
@@ -44,7 +44,8 @@ or
 `./start -d`  
 for daemonise.  
 
-Configure your device/software to receive NMEA 0183 from host (may be localhost?) and port (3800 by default) as you set in *params.php*. 
+Configure your device/software to receive NMEA 0183 from host (may be localhost?) and port (3800 by default) as you set in *params.php*.  
+No need for special configuration to receive data in the [gpsdPROXY](https://github.com/VladimirKalachikhin/gpsdPROXY).
 
 ## Support
 [Forum](https://github.com/VladimirKalachikhin/Galadriel-map/discussions)

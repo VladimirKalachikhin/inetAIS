@@ -1,5 +1,4 @@
 <?php
-$gpsdPROXYhost='127.0.0.1'; $gpsdPROXYport='3838';
 $SEEN_GPS = 0x01; $SEEN_AIS = 0x08;
 $AISdevice = array(
 'class' => 'DEVICE',
@@ -37,6 +36,8 @@ function gpsdPROXYconnect($gpsdPROXYhost='127.0.0.1',$gpsdPROXYport='3838',$gree
 
 */
 global $AISdevice;
+if(!$gpsdPROXYhost) $gpsdPROXYhost='127.0.0.1'; 
+if(!$gpsdPROXYport) $gpsdPROXYport='3838';
 $gpsdPROXYsock = createSocketClient($gpsdPROXYhost,$gpsdPROXYport); 	// Соединение с gpsdPROXY
 //echo "\ngpsdPROXYsock=$gpsdPROXYsock;\n"; var_dump($gpsdPROXYsock);
 if($gpsdPROXYsock === FALSE) { 	// клиент умер

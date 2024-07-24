@@ -1,4 +1,14 @@
 <?php
+/*
+updInstrumentsData($inInstrumentsDates)
+chkFreshOfData()
+createSocketServer($host,$port,$connections=2)
+sendAIS()
+isExternalPipe($pipe,$deskNum=1)
+openProcess($cmd,$message='',$procID=null)
+closeProcess($procID)
+rus2translit($string)
+*/
 
 function updInstrumentsData($inInstrumentsDates){
 global $instrumentsData;

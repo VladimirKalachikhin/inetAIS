@@ -46,6 +46,10 @@ $gpsdProxyTimeouts = array(
 // Параметры подключения клиентов 
 $inetAIShost = "0.0.0.0";	// Clients connection setting
 $inetAISport = "3800";
+// Если указано, то данные будут отдаваться ещё и gpsdPROXY
+// по умолчальному или указанному адресу
+$gpsdPROXYhost = '';	// enable gpsdPROXY as client
+$gpsdPROXYport = '';
 
 // Источник сведений о координатах подвижной точки получения обстановки AIS.
 // 	Если источника нет -- для подвижной точки и не будет получатся информация AIS.

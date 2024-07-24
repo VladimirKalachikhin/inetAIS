@@ -2,10 +2,10 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.3
+version 0.2.4
 
-Если в конфиге не указать входящее соединение ($inetAIShost), то демон будет пытаться
-отдать данные gpsdPROXY.
+Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
+отдать данные gpsdPROXY, кроме обслуживания указанного порта.
 */
 chdir(__DIR__); // задаем директорию выполнение скрипта
 require_once("fCommon.php");
@@ -18,20 +18,20 @@ $getTPVtmeout = round(0.75*$getDataTimeout);	// получать координ�
 $inSocket=null; $gpsdPROXYsocket=null;
 if($inetAIShost){	// Входящее соединение для клиентов
 	$inSocket = stream_socket_server("tcp://$inetAIShost:$inetAISport",$errno,$errstr);
-	if(!$inSocket) exit("Imposible to create inbound socket: $errstr\n");
-	echo "inbound connections are expected on tcp://$inetAIShost:$inetAISport\n";
+	if($inSocket) echo "Inbound connections are expected on tcp://$inetAIShost:$inetAISport\n";
+};
+if(isset($gpsdPROXYhost)) {	// Соединение с gpsdPROXY для передачи данных
+	$gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);	// fgpsdPROXY.php
+	if($gpsdPROXYsocket) echo "The gpsdPROXY feeder open.\n";
 }
-else {	// входящих соединений не будет, а будет соединение с gpsdPROXY для передачи данных
-	$gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
-	echo "no inbound connections, the gpsdPROXY feeder only";
-}
+if(!$inSocket and $gpsdPROXYsocket) exit("Imposible to create inbound socket or gpsdPROXY feeder: $errstr\n");
 
 $instrumentsData = array('AIS'=>array());	//  собственно собираемые / кешируемые данные
 
 $getDataTimeout = min(min($gpsdProxyTimeouts['AIS']),$getDataTimeout);
 echo "Gets data from AIS source every $getDataTimeout sec.\n";
 echo "Sends AIS TPV every {$AISintervals['TPV']} sec, and other info every {$AISintervals['metainfo']} sec.\n";
-
+echo "\n";
 $rotateBeam = array("|","/","-","\\");
 $rBi = 0;
 
@@ -52,18 +52,24 @@ do{
 	}
 	$errPipes = $inboundConnects;	// проверять будем только клиентские потоки, потому что см. выше
 
+	// Показ сообщения
 	if($inboundConnects or $gpsdPROXYsocket) {
 		$timeout = min($getDataTimeout,$getTPVtmeout);
 		
 		echo($rotateBeam[$rBi]);	// вращающаяся палка
 		//echo " Изменилось $nStreams потоков. Недавно изменённых целей ";
-		if($gpsdPROXYsocket) echo " Connecting from gpsdPROXY. ";
-		else echo " Connected ".(count($inboundConnects))." clients. ";
+		echo " Connected ";
+		if($inSocket) {
+			echo (count($inboundConnects))." clients";
+			if($gpsdPROXYsocket) echo " and ";
+			else echo ". ";
+		};
+		if($gpsdPROXYsocket) echo "from gpsdPROXY. ";
 		echo "Recently changed targets ";
 		if(@count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
 		echo "$countrecievedMMSI.";
 		if(@$AISinterestPoints['self']) echo " pos:".round($AISinterestPoints['self']['latitude'],4).",".round($AISinterestPoints['self']['longitude'],4)."   ";
-		else echo "            ";
+		else echo "   ";
 		echo "\r";
 		$rBi++;
 		if($rBi>=count($rotateBeam)) $rBi = 0;
@@ -82,7 +88,7 @@ do{
 	//$timeout = $getDataTimeout;	// для целей тестирования
 	//echo "\ntimeout=$timeout; inPipes:"; print_r($inPipes); echo "outPipes:"; print_r($outPipes);
 	if($inPipes or $outPipes or $errPipes){	// это концептуально неправильно, но будет работать в PHP8. Правильный код с проверкой $nStreams===null в PHP8 работать не будет
-		$nStreams = stream_select($inPipes,$outPipes,$errPipes,$timeout);
+		$nStreams = @stream_select($inPipes,$outPipes,$errPipes,$timeout);
 	}
 	else sleep($getDataTimeout);	// нет ни входящих, ни сокета для подключения, ни gpsdPROXY
 	
@@ -152,13 +158,13 @@ do{
 							list($noMetaData,$deletedMMSI) = chkFreshOfData();	// Проверим актуальность данных и получим список тех, для кого нет полной информации. При этом в $recievedMMSI могли бы остаться mmsi удалённых в этом процессе объектов
 							//echo "осталось свежих целей AIS в instrumentsData ".count($instrumentsData['AIS'])."\n";
 							$recievedMMSI = array_diff($recievedMMSI,$deletedMMSI);	// теперь в $recievedMMSI mmsi изменённых целей AIS, оставшихся в $instrumentsData
-						}
+						};
 					}
 					$extData = '';
 				}
 				continue;	// к следующему потоку
-			}
-			echo "Other streems with inbound data:                     \n";
+			};
+			echo "Other streems with inbound data:                                       \n";
 			// вообще-то, там ничего не должно приходить, но telnet, например, присылает сообщение о закрытии соединения
 			$res = fgets($pipe,2048);	// обязательно надо читать, иначе stream_socket_accept сразу будет возвращать поток, в котором что-то есть
 			echo "res=$res;\n";
@@ -199,25 +205,26 @@ do{
 			if(!is_resource(@$externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
 				//echo "Запускаем процесс получения координат         \n";
 				openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
-			}
-		}
-	}
+			};
+		};
+	};
 	
 	// Запись
+	//file_put_contents('instrumentsData.json',json_encode($instrumentsData,JSON_PRETTY_PRINT));
 	if($inetAIShost) {	//есть (должно быть) входящее соединение для клиентов
 		if($inboundConnects and $recievedMMSI){	// есть клиенты и есть, что передавать
 			$mesNMEA = array_merge($mesNMEA,getAISData(array_intersect(array_keys($instrumentsData["AIS"]),$recievedMMSI)));
 			//echo "$mesNMEA\n"; 
 		};
 		sendAIS();	// Отправляет одно первое сообщение AIS из массива $mesNMEA в каждый из потоков в массиве $сonnects
-	}
-	else {	// нет входящего соединения, всё нужно отсылать gpsdPROXY
+	};
+	if(isset($gpsdPROXYhost)) {	// отсылать gpsdPROXY
 		if(!$gpsdPROXYsocket) $gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
 		if($gpsdPROXYsocket) {
-			//echo "\n отсылаем в GPSDPROXY\n";
+			//echo "\n отсылаем в GPSDPROXY\n"; // синхронно
 			sendAIStogpsdPROXY();
-		}
-	}
+		};
+	};
 	
 }while(true);
 curl_close($ch);
