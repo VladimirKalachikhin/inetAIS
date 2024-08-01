@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.4
+version 0.2.5
 
 Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
 отдать данные gpsdPROXY, кроме обслуживания указанного порта.
@@ -44,12 +44,13 @@ $lastGetFromSource = 0;
 $lastGetTPV = 0;
 $countrecievedMMSI = 0;
 do{
+	//$microtime = microtime(true);
 	$inPipes = $inboundConnects;	// будем слушать уже открытые потоки
 	if($inSocket) $inPipes[] = $inSocket;	// будем слушать входной сокет
 	foreach($externalProcesses as $process){	// для каждого запущенного внешнего процесса
 		$inPipes[] = $process["pipes"][1]; // будем слушать поток его стандартного вывода (чисто для памяти: там лежат переменные, которые являются ссылками на ресурсы)
 		$inPipes[] = $process["pipes"][2]; // будем слушать поток его stderr, потому что внешние процессы у нас -- скрипты php, и stderr собственно скрипта выводится в stdout php
-	}
+	};
 	$errPipes = $inboundConnects;	// проверять будем только клиентские потоки, потому что см. выше
 
 	// Показ сообщения
@@ -57,7 +58,6 @@ do{
 		$timeout = min($getDataTimeout,$getTPVtmeout);
 		
 		echo($rotateBeam[$rBi]);	// вращающаяся палка
-		//echo " Изменилось $nStreams потоков. Недавно изменённых целей ";
 		echo " Connected ";
 		if($inSocket) {
 			echo (count($inboundConnects))." clients";
@@ -65,10 +65,10 @@ do{
 			else echo ". ";
 		};
 		if($gpsdPROXYsocket) echo "from gpsdPROXY. ";
-		echo "Recently changed targets ";
+		echo "Changed targets ";
 		if(@count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
 		echo "$countrecievedMMSI.";
-		if(@$AISinterestPoints['self']) echo " pos:".round($AISinterestPoints['self']['latitude'],4).",".round($AISinterestPoints['self']['longitude'],4)."   ";
+		if(@$AISinterestPoints['self']) echo " pos:".round($AISinterestPoints['self']['latitude'],3).",".round($AISinterestPoints['self']['longitude'],3)."   ";
 		else echo "   ";
 		echo "\r";
 		$rBi++;
@@ -83,7 +83,7 @@ do{
 		// пыталось соединиться с gpsdPROXY.
 		$timeout = null;
 		echo "No inbound connections, waiting on $inetAIShost:$inetAISport   \r";
-	}
+	};
 		
 	//$timeout = $getDataTimeout;	// для целей тестирования
 	//echo "\ntimeout=$timeout; inPipes:"; print_r($inPipes); echo "outPipes:"; print_r($outPipes);
@@ -101,8 +101,8 @@ do{
 			if(is_resource($streem)) fclose($streem);
 			unset($streem);
 			echo "There is a problem with the client streem, the streem is closed and deleted                      \n";
-		}
-	}
+		};
+	};
 	
 	// Чтение
 	$recievedMMSI = array();	// массив изменившихся целей вида array($mmsi)
@@ -116,16 +116,16 @@ do{
 			if($pipe === $inSocket){	 //echo "во входной сокет кто-то постучался                                  \n";
 				$inboundConnects[] = stream_socket_accept($inSocket, -1);
 				continue;	// к следующему потоку
-			}
+			};
 			if(($procID = isExternalPipe($pipe,2))!==false){	// поток из stderr внешнего процесса
 				$externalProcesses[$procID]['inString'] .= stream_get_contents($pipe);
 				if(feof($pipe)) {
 					echo "The process error {$externalProcesses[$procID]['inString']} on external process $procID              \n";
 					//echo "Проблема с внешним процессом $procID              \n";
 					$toDie[] = $procID;
-				}
+				};
 				continue;	// к следующему потоку
-			}
+			};
 			if(($procID = isExternalPipe($pipe,1))!==false){	// поток из stduot внешнего процесса
 				//echo "внешний процесс $procID что-то вернул                           \n";
 				@$externalProcesses[$procID]['inString'] .= trim(stream_get_contents($pipe));
@@ -145,7 +145,7 @@ do{
 					elseif($extData['error']){
 						echo "The error '{$extData['error']}' on external process $procID             \n";
 						continue;	// к следующему потоку
-					}
+					};
 					// updInstrumentsData понимает как набор с координатами, так и набор с метаинформацией
 					if($extData) {	// непустой массив
 						if($extData['class']=='TPV'){	// это координаты
@@ -159,9 +159,9 @@ do{
 							//echo "осталось свежих целей AIS в instrumentsData ".count($instrumentsData['AIS'])."\n";
 							$recievedMMSI = array_diff($recievedMMSI,$deletedMMSI);	// теперь в $recievedMMSI mmsi изменённых целей AIS, оставшихся в $instrumentsData
 						};
-					}
+					};
 					$extData = '';
-				}
+				};
 				continue;	// к следующему потоку
 			};
 			echo "Other streems with inbound data:                                       \n";
@@ -169,14 +169,14 @@ do{
 			$res = fgets($pipe,2048);	// обязательно надо читать, иначе stream_socket_accept сразу будет возвращать поток, в котором что-то есть
 			echo "res=$res;\n";
 			if($res === false) closeClient($pipe);	// клиент отвалился
-		}
+		};
 		// Поскольку каждый внешний процесс имеет несколько потоков, нужно прочесть все потоки
 		// прежде чем убивать внешний процесс и его потоки.
 		// После прочтения всех потоков убиваем те внешние процессы, на которые указали
 		$toDie = array_unique($toDie);
 		array_walk($toDie,'closeProcess');
 		$externalProcesses = array_merge($externalProcesses);	// перенумеруем процессы с начала, чтобы их номера не увеличивались бесконечно
-	}
+	};
 	
 	// Выполнение
 	// Поскольку для реализации отдачи в gpsdPROXY оно оборачивается и при отсутствии кому отдавать,
@@ -188,15 +188,16 @@ do{
 			foreach($AISinterestPoints as $label => $poi){	// опросим все точки
 				//echo "Get AIS targets for $label point                 \n"; print_r($poi);
 				openProcess("$phpCLIexec getAISdata.php",serialize($poi));
-			}
+			};
 			// Получение метаданных
 			if($noMetaData and !is_resource($externalProcesses['getMetaDataProcess']['process'])){	// не запущен процесс получения метаданных
 				//echo "Has ".count($noMetaData)." AIS targets without full metadata                 \n";
 				//echo "noMetaData=";print_r($noMetaData);
+				exec('pkill getMetaData.php');	// убъём, если такой процесс запущен. Нормально он должен был успеть.
 				openProcess("$phpCLIexec getMetaData.php",serialize($noMetaData),'getMetaDataProcess');
 				$noMetaData = null;
-			}
-		}
+			};
+		};
 		// Получение координат подвижной точки (собственных, ага)
 		// Их нужно получать с отдельным интервалом, потому что интервал $getDataTimeout
 		// может быть большим, и свои координаты всегда будут не в той точке
@@ -204,6 +205,7 @@ do{
 			$lastGetTPV = time();
 			if(!is_resource(@$externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
 				//echo "Запускаем процесс получения координат         \n";
+				exec('pkill getAISdata.php');	// убъём, если такой процесс запущен. Нормально он должен был успеть.
 				openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
 			};
 		};
@@ -218,14 +220,13 @@ do{
 		};
 		sendAIS();	// Отправляет одно первое сообщение AIS из массива $mesNMEA в каждый из потоков в массиве $сonnects
 	};
-	if(isset($gpsdPROXYhost)) {	// отсылать gpsdPROXY
+	if(isset($gpsdPROXYhost) and $recievedMMSI) {	// отсылать gpsdPROXY
 		if(!$gpsdPROXYsocket) $gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
 		if($gpsdPROXYsocket) {
 			//echo "\n отсылаем в GPSDPROXY\n"; // синхронно
 			sendAIStogpsdPROXY();
 		};
 	};
-	
+	//if((microtime(true)-$microtime)>0.3) echo "Ждали ".(microtime(true)-$microtime)." sec. ";
 }while(true);
-curl_close($ch);
 ?>

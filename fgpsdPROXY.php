@@ -15,7 +15,7 @@ global $instrumentsData,$gpsdPROXYsocket,$AISdevice;
 $AISdata = array();
 foreach($instrumentsData['AIS'] as $mmsi => $value){
 	$AISdata[$mmsi] = $value['data'];
-}
+};
 $msg = array('class'=>'netAIS','device'=>$AISdevice['path'],'data'=>$AISdata);
 //echo "\naisData to send to gpsdPROXY: >"; print_r($msg);
 $msg = json_encode($msg);
@@ -28,7 +28,7 @@ if($res === FALSE) { 	// клиент умер
 	$connected = FALSE;
 	echo "\nFailed to write data to gpsdPROXY socket by: " . @socket_strerror(socket_last_error($gpsdPROXYsocket)) . "\n";
 	$gpsdPROXYsocket = null;
-}
+};
 }; // end function sendAIStogpsdPROXY
 
 function gpsdPROXYconnect($gpsdPROXYhost='127.0.0.1',$gpsdPROXYport='3838',$greeting='{"class":"VERSION","release":"inetAIS","rev":"1","proto_major":5,"proto_minor":3}'){
@@ -44,7 +44,7 @@ if($gpsdPROXYsock === FALSE) { 	// клиент умер
 	$connected = FALSE;
 	echo "\nFailed to connect to gpsdPROXY \n";
 	return false;
-}
+};
 $res = socket_write($gpsdPROXYsock, "\n\n", 2);	// gpsgPROXY не вернёт greeting, если не получит что-то. Ну, так получилось
 $buf = socket_read($gpsdPROXYsock, 2048, PHP_NORMAL_READ); 	// читаем VERSION, PHP_NORMAL_READ -- ждать \n
 //echo "buf: |$buf|\n";
@@ -64,15 +64,15 @@ do{		//
 		$connected = FALSE;
 		echo "\nBroke socket $gpsdPROXYsock during handshaking \n";
 		break;
-	}
+	};
 	if(!$buf=trim($buf)) {	// пустые строки
 		$zeroCount++;
 		continue;
-	}
+	};
 	if($buf[0]!='?') { 	// это не команда протокола gpsd
 		$zeroCount++;
 		continue;
-	}
+	};
 	$buf = rtrim(substr($buf,1),';');	// ? ;
 	list($command,$params) = explode('=',$buf);
 	$params = trim($params);
@@ -90,7 +90,7 @@ do{		//
 		//echo "Send WATCH\n";
 		$res = socket_write($gpsdPROXYsock, $msg, strlen($msg)); 	// шлём WATCH
 		break;
-	}
+	};
 	$connected = TRUE;
 	break;
 }while($zeroCount<10);
@@ -104,11 +104,11 @@ $sock = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 if(!$sock) {
 	echo "[createSocketClient] Failed to create client socket by reason: " . socket_strerror(socket_last_error()) . "\n";
 	return FALSE;
-}
+};
 if(! @socket_connect($sock,$host,$port)){ 	// подключаемся к серверу
 	echo "[createSocketClient] Failed to connect to remote server $host:$port by reason: " . socket_strerror(socket_last_error()) . "\n";
 	return FALSE;
-}
+};
 echo "Connected to $host:$port \n";
 return $sock;
 } // end function createSocketClient

@@ -230,6 +230,7 @@ if(!$inboundConnects) {	// клиентов нет
 	$mesNMEA = array();	// клиенты могли отвалиться до того, как им всё отослали
 	return;
 }
+//echo "[sendAIS] имеется для отсылки ".count($mesNMEA)." сообщений NMEA";
 $message = array_pop($mesNMEA);	// возьмём сообщение для отсылки
 if($message === null) {	// нечего посылать
 	$outPipes = array();	// укажем stream_select, что всё отослано
@@ -239,7 +240,7 @@ if($message === null) {	// нечего посылать
 foreach($inboundConnects as $streem){
 	if(is_resource($streem)) {
 		$res = fwrite($streem, $message);
-		//echo "res=$res;\n"; //print_r($inboundConnects);
+		//echo "[sendAIS] res=$res;\n"; //print_r($inboundConnects);
 		if($res === false){	// клиент отвалился
 			unset($inboundConnects[array_search($streem, $inboundConnects)]);
 			fclose($streem);
