@@ -21,6 +21,8 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 ));
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, round($getDataTimeout/3));
+curl_setopt($ch, CURLOPT_TIMEOUT, $getDataTimeout);
 curl_setopt($ch, CURLOPT_URL,$url);
 $AISlocations = curl_exec($ch);
 $info = curl_getinfo($ch);

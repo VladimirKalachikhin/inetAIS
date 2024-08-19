@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.5
+version 0.2.6
 
 Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
 отдать данные gpsdPROXY, кроме обслуживания указанного порта.

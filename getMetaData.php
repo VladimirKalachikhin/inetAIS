@@ -19,6 +19,8 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 ));
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, round($getDataTimeout/3));
+curl_setopt($ch, CURLOPT_TIMEOUT, $getDataTimeout);
 foreach($noMetaData as $mmsi){
 	// Для всеъ целей оно в gzip, но для одной -- не сжато
 	curl_setopt($ch, CURLOPT_URL,"$urlAISvessels/$mmsi");
