@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.6
+version 0.2.7
 
 Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
 отдать данные gpsdPROXY, кроме обслуживания указанного порта.
@@ -53,6 +53,15 @@ do{
 	};
 	$errPipes = $inboundConnects;	// проверять будем только клиентские потоки, потому что см. выше
 
+	if(isset($gpsdPROXYhost)) {	// Перезапустим соединение с gpsdPROXY, если оно обломилось.
+		//echo "\ngpsdPROXYsocket:".$gpsdPROXYsocket.", gettype()=".gettype($gpsdPROXYsocket)."\n";
+		if(!$gpsdPROXYsocket) {	// если с сокетом что, то в sendAIStogpsdPROXY ему присвоится null, и всё будет работать и в PHP8
+			$gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
+			if($gpsdPROXYsocket) echo "The gpsdPROXY feeder reopen.               \n";
+			else echo "The gpsdPROXY feeder false to reopen.                \n";
+		};
+	};
+
 	// Показ сообщения
 	if($inboundConnects or $gpsdPROXYsocket) {
 		$timeout = min($getDataTimeout,$getTPVtmeout);
@@ -91,7 +100,7 @@ do{
 		$nStreams = @stream_select($inPipes,$outPipes,$errPipes,$timeout);
 	}
 	else sleep($getDataTimeout);	// нет ни входящих, ни сокета для подключения, ни gpsdPROXY
-	
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Проблемы. С нашей стороны?
 	if($errPipes) {
 		// всё так просто, потому что мы следим только за клиентскими потоками, не за потоками
@@ -220,12 +229,9 @@ do{
 		};
 		sendAIS();	// Отправляет одно первое сообщение AIS из массива $mesNMEA в каждый из потоков в массиве $сonnects
 	};
-	if(isset($gpsdPROXYhost) and $recievedMMSI) {	// отсылать gpsdPROXY
-		if(!$gpsdPROXYsocket) $gpsdPROXYsocket = gpsdPROXYconnect($gpsdPROXYhost,$gpsdPROXYport);
-		if($gpsdPROXYsocket) {
-			//echo "\n отсылаем в GPSDPROXY\n"; // синхронно
-			sendAIStogpsdPROXY();
-		};
+	if($gpsdPROXYsocket and $recievedMMSI) {	// отсылать gpsdPROXY
+		//echo "\n отсылаем в GPSDPROXY\n"; // синхронно
+		sendAIStogpsdPROXY();
 	};
 	//if((microtime(true)-$microtime)>0.3) echo "Ждали ".(microtime(true)-$microtime)." sec. ";
 }while(true);

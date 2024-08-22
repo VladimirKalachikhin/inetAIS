@@ -26,7 +26,7 @@ $res = @socket_write($gpsdPROXYsocket, $msg, strlen($msg)); 	// шлём дан�
 if($res === FALSE) { 	// клиент умер
 	socket_close($gpsdPROXYsocket);	// 
 	$connected = FALSE;
-	echo "\nFailed to write data to gpsdPROXY socket by: " . @socket_strerror(socket_last_error($gpsdPROXYsocket)) . "\n";
+	echo "Failed to write data to gpsdPROXY socket by: " . @socket_strerror(socket_last_error($gpsdPROXYsocket)) . "\n";
 	$gpsdPROXYsocket = null;
 };
 }; // end function sendAIStogpsdPROXY
