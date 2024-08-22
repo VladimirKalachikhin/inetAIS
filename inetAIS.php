@@ -45,6 +45,7 @@ $lastGetTPV = 0;
 $countrecievedMMSI = 0;
 do{
 	//$microtime = microtime(true);
+	$timeout = min($getDataTimeout,$getTPVtmeout);
 	$inPipes = $inboundConnects;	// будем слушать уже открытые потоки
 	if($inSocket) $inPipes[] = $inSocket;	// будем слушать входной сокет
 	foreach($externalProcesses as $process){	// для каждого запущенного внешнего процесса
@@ -64,8 +65,6 @@ do{
 
 	// Показ сообщения
 	if($inboundConnects or $gpsdPROXYsocket) {
-		$timeout = min($getDataTimeout,$getTPVtmeout);
-		
 		echo($rotateBeam[$rBi]);	// вращающаяся палка
 		echo " Connected ";
 		if($inSocket) {
@@ -76,7 +75,7 @@ do{
 		if($gpsdPROXYsocket) echo "from gpsdPROXY. ";
 		echo "Changed targets ";
 		if(@count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
-		echo "$countrecievedMMSI.";
+		echo "$countrecievedMMSI";
 		if(@$AISinterestPoints['self']) echo " pos:".round($AISinterestPoints['self']['latitude'],3).",".round($AISinterestPoints['self']['longitude'],3)."   ";
 		else echo "   ";
 		echo "\r";
@@ -90,7 +89,7 @@ do{
 		// Поэтому при отсутствии входящих соединений и соединения с gpsdPROXY 
 		// используем sleep, чтобы оно, во-первых, в основном стояло, а во-вторых, время от времени
 		// пыталось соединиться с gpsdPROXY.
-		$timeout = null;
+		if(!isset($gpsdPROXYhost)) $timeout = null;	// ждать вечно, если не нужно общаться с gpsdPROXY
 		echo "No inbound connections, waiting on $inetAIShost:$inetAISport   \r";
 	};
 		
@@ -190,7 +189,7 @@ do{
 	// Выполнение
 	// Поскольку для реализации отдачи в gpsdPROXY оно оборачивается и при отсутствии кому отдавать,
 	// организуем запросы наружу только при наличии получателя внутри
-	if($inSocket or $gpsdPROXYsocket){
+	if($inboundConnects or $gpsdPROXYsocket){	// есть клиенты или соединение с gpsdPROXY
 		if((time()-$lastGetFromSource)>=$getDataTimeout) {	// спрашивать данные у источника не чаще указанного, а не каждый оборот
 			$lastGetFromSource = time();
 			// 	Получение координат целей AIS
