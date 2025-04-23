@@ -2,10 +2,11 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.7
+version 0.2.9
 
 Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
-отдать данные gpsdPROXY, кроме обслуживания указанного порта.
+отдать данные gpsdPROXY, кроме обслуживания указанного порта. Если указана переменная $gpsdPROXYpath
+то будет предпринята попытка запустить gpsdPROXY.
 */
 chdir(__DIR__); // задаем директорию выполнение скрипта
 require_once("fCommon.php");

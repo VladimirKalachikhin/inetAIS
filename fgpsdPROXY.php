@@ -35,9 +35,13 @@ function gpsdPROXYconnect($gpsdPROXYhost='127.0.0.1',$gpsdPROXYport='3838',$gree
 /* соединяется с gpsdPROXY как сервер gpsd в режиме WATCH посредством команды CONNECT 
 
 */
-global $AISdevice;
+global $AISdevice,$gpsdPROXYpath;
 if(!$gpsdPROXYhost) $gpsdPROXYhost='127.0.0.1'; 
 if(!$gpsdPROXYport) $gpsdPROXYport='3838';
+
+// start gpsdPROXY
+if($gpsdPROXYpath) exec("$phpCLIexec $gpsdPROXYpath/gpsdPROXY.php > /dev/null 2>&1 &");
+
 $gpsdPROXYsock = createSocketClient($gpsdPROXYhost,$gpsdPROXYport); 	// Соединение с gpsdPROXY
 //echo "\ngpsdPROXYsock=$gpsdPROXYsock;\n"; var_dump($gpsdPROXYsock);
 if($gpsdPROXYsock === FALSE) { 	// клиент умер
@@ -109,7 +113,7 @@ if(! @socket_connect($sock,$host,$port)){ 	// подключаемся к сер
 	echo "[createSocketClient] Failed to connect to remote server $host:$port by reason: " . socket_strerror(socket_last_error()) . "\n";
 	return FALSE;
 };
-echo "Connected to $host:$port \n";
+echo "Connected to $host:$port                \n";
 return $sock;
 } // end function createSocketClient
 

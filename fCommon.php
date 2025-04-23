@@ -49,7 +49,9 @@ foreach($inInstrumentsDates as $inInstrumentsData){
 		$instrumentsData['AIS'][$vehicle]['cachedTime']['lat'] = $now;
 	}
 	if(isset($inInstrumentsData['properties']['sog'])){
-		if($inInstrumentsData['properties']['sog']>1022) $instrumentsData['AIS'][$vehicle]['data']['speed'] = NULL;
+		//if($inInstrumentsData['properties']['sog']>=100) echo "inInstrumentsData:{$inInstrumentsData['properties']['mmsi']} {$inInstrumentsData['properties']['sog']}\n";// var_dump($inInstrumentsData); echo "\n";
+		//if($inInstrumentsData['properties']['sog']>1022) $instrumentsData['AIS'][$vehicle]['data']['speed'] = NULL;
+		if($inInstrumentsData['properties']['sog']>102.2) $instrumentsData['AIS'][$vehicle]['data']['speed'] = NULL; 	// у этих людей скорость в узлах?
 		//else $instrumentsData['AIS'][$vehicle]['data']['speed'] = (float)filter_var($inInstrumentsData['properties']['sog'],FILTER_SANITIZE_NUMBER_FLOAT,FILTER_FLAG_ALLOW_FRACTION)*185.2/3600; 	// SOG Speed over ground in m/sec 	(in 1/10 knot steps (0-102.2 knots) 1 023 = not available, 1 022 = 102.2 knots or higher)
 		else $instrumentsData['AIS'][$vehicle]['data']['speed'] = (float)filter_var($inInstrumentsData['properties']['sog'],FILTER_SANITIZE_NUMBER_FLOAT,FILTER_FLAG_ALLOW_FRACTION)*1852/3600; 	// у этих людей скорость в узлах?
 		$instrumentsData['AIS'][$vehicle]['cachedTime']['speed'] = $now;

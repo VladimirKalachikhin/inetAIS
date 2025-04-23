@@ -1,13 +1,49 @@
 <?php
-// Функции получения посылок AIS из данных AIS
+/* Функции создания посылок AIS из данных AIS
+https://www.aggsoft.com/ais-decoder.htm
+getAISData($aisDatesKeys=null)	Приводит данные к формату сообщений NMEA AIS
+toAISphrases($vesselData,$aisDataClass,$AISformat="A")	Делает набор посылок AIS из данных AIS
+getNMEAsent($vesselData,$type,$format)	Возвращает строку -- выражение NMEA AIS типа $type
+
+mk_ais_lat($lat,$mes=10000)	Делает AIS представление широты
+function mk_ais_lon($lon,$mes=10000)	Делает AIS представление долготы
+mk_ais_rot($rot)	заглушка
+char2bin($name, $max_len)	Кодирование строк
+mk_ais($_enc, $_part=1,$_total=1,$_seq='',$_ch='A')	Здесь только формирование самого сообщения: кодирование и контрольная сумма
+*/
 
 function getAISData($aisDatesKeys=null){
 /* Приводит данные к формату сообщений NMEA AIS
 $aisDatesKeys -- массив mmsi, ключей массива $instrumentsData["AIS"], элементы котрого были изменены
 Возвращает массив
+$instrumentsData :
+[AIS] => Array(
+	[244690470] => Array(
+		[data] => Array(
+			[mmsi] => 244690470
+			[status] => 15
+			[status_text] => Not defined
+			[accuracy] => 0
+			[lon] => 5.675295
+			[lat] => 52.848757
+			[course] => 0
+			[heading] => 
+			[maneuver] => 0
+			...
+		)
+	)
+)
+// Частота посылки информации клиентам, сек. AIS messages sending to clients intervals, sec.
+// 0 - с частотой получения. 0 - synchronously
+// Также указывает, какого рода информацию посылать: если не указать metainfo, то будут посылаться только координвты
+$AISintervals = array(
+'TPV' => 0,
+'metainfo' => 60*2
+);
+
 */
 global $instrumentsData,$AISintervals;
-if(!$aisDatesKeys) $aisDatesKeys = array_keys($instrumentsData["AIS"]);
+if(!$aisDatesKeys) $aisDatesKeys = array_keys($instrumentsData["AIS"]);	// т.е., все имеющиеся данные
 $AISsentencies = array();
 foreach($aisDatesKeys as $mmsi){
 	$now = time();
@@ -22,15 +58,29 @@ foreach($aisDatesKeys as $mmsi){
 return $AISsentencies;
 } // end function getAISData
 
-function toAISphrases($vesselData,$aisDataClass){
+function toAISphrases($vesselData,$aisDataClass,$AISformat="A"){
 /* Делает набор посылок AIS из данных AIS.
-$vesselData -- данные одного судна в нормальных единицах измерения
+$vesselData -- данные одного судна в нормальных единицах измерения, массив:
+Array(
+	[mmsi] => 244690470
+	[status] => 15
+	[status_text] => Not defined
+	[accuracy] => 0
+	[lon] => 5.675295
+	[lat] => 52.848757
+	[course] => 0
+	[heading] => 
+	[maneuver] => 0
+	...
+)
+$aisDataClass - это либо 'TPV', либо 'metainfo', т.е., какой набор данных из $vesselData готовить.
+$AISformat - тип передатчика AIS, Class A, Class B или SART - буй EPIRB, буй MOB, или сообщение об опасности
 Возвращает массив строк AIS NMEA
 */
 $AISformatA = array(
 'TPV' => array(
 	'1' => array(
-		'MessageID' => str_pad(decbin(1), 6, '0', STR_PAD_LEFT),	// 6 bits Identifier for Message 18; always 18
+		'MessageID' => str_pad(decbin(1), 6, '0', STR_PAD_LEFT),	// 6 bits Identifier for Message 1; always 1
 		'Repeatindicator' => str_pad(decbin(0), 2, '0', STR_PAD_LEFT),	// 2 Repeat indicator 0 = default; 3 = do not repeat any more
 		'mmsi' => array('num',30,1),	// 30 bits User ID  	MMSI number
 		'status' => array('num',4,1,15),	// 
@@ -70,7 +120,7 @@ $AISformatA = array(
 		'draught' => array('num',8,10,0),	//
 		'destination' => array('str',20),	//
 		'dte' => array('num',1,1,1),	//
-		'Spare' => str_pad(decbin(0), 1, '0', STR_PAD_LEFT), //8 Not used. Should be set to zero. Reserved for future use
+		'Spare' => str_pad(decbin(0), 1, '0', STR_PAD_LEFT), //1 Not used. Should be set to zero. Reserved for future use
 	)
 )
 );
@@ -141,9 +191,50 @@ $AISformatB = array(
 	)
 )
 );
+// SART будет один для A и B, хотя в B сообщение должно быть короче - вплоть до только 1 слота. Другой разницы нет.
+$AISformatSART = array(
+'TPV' => array(
+	'1' => array(
+		'MessageID' => str_pad(decbin(1), 6, '0', STR_PAD_LEFT),	// 6 bits Identifier for Message
+		'Repeatindicator' => str_pad(decbin(0), 2, '0', STR_PAD_LEFT),	// 2 Repeat indicator 0 = default; 3 = do not repeat any more
+		'mmsi' => array('num',30,1),	// 30 bits User ID  	MMSI number
+		'status' => array('num',4,1,15),	// 
+		'turn' => array('num',8,1,128),
+		'speed' => array('num',10,((60*60)/1852)*10,1023),	// str_pad(decbin($speed), 10, '0', STR_PAD_LEFT) 10 SOG Speed over ground
+		'accuracy' => array('num',1,1,0),
+		'lon' => array('lon'),	// 
+		'lat' => array('lat'),	// 
+		'course' => array('num',12,10,3600),	// str_pad(decbin($course), 12, '0', STR_PAD_LEFT) 12 COG Course over ground in 1/10= (0-3599)
+		'heading' => array('num',9,1,511),	// str_pad(decbin($heading), 9, '0', STR_PAD_LEFT) 9 True heading Degrees (0-359) (511 indicates not available = default)
+		'timestamp' => str_pad(decbin(0), 6, '0', STR_PAD_LEFT),	// 6 UTC second when the report was generated (0-59 or 60 if time stamp is not available, which should also be the default value or 62 if electronic position fixing system operates in estimated (dead reckoning) mode or 61 if positioning system is in manual input mode or 63 if the positioning system is inoperative) 
+		'maneuver' => str_pad(decbin(0), 2, '0', STR_PAD_LEFT),	// 0
+		'Spare' => str_pad(decbin(0), 8, '0', STR_PAD_LEFT), //8 Not used. Should be set to zero. Reserved for future use
+		'raim' => array('num',1,1,0), // 1 RAIM (Receiver autonomous integrity monitoring) flag of electronic position fixing device; 0 = RAIM not in use = default; 1 = RAIM in use
+		'Communication_state' => '1100000000000000110' // 19 SOTDMA communication state (see § 3.3.7.2.1, Annex 2), if communication state selector flag is set to 0, or ITDMA communication state (see § 3.3.7.3.2, Annex 2), if communication state selector flag is set to 1 Because Class B “CS” does not use any Communication State information, this field should be filled with the following value: 1100000000000000110
+	),
+	'14' => array(
+		'MessageID' => str_pad(decbin(14), 6, '0', STR_PAD_LEFT),	// 6 bits Identifier for Message
+		'Repeatindicator' => str_pad(decbin(0), 2, '0', STR_PAD_LEFT),	// 2 Repeat indicator 0 = default; 3 = do not repeat any more
+		'mmsi' => array('num',30,1),	// 30 bits User ID  	MMSI number
+		'Spare' => str_pad(decbin(0), 2, '0', STR_PAD_LEFT), //2 Not used. Should be set to zero. Reserved for future use
+		'safety_related_text' => array('str',161)	// Occupies up to 3 slots, or up to 5 slots when able to use FATDMA reservations. For Class B “SO” mobile AIS stations the length of the message should not exceed 3 slots. For Class B “CS” mobile AIS stations the length of the message should not exceed 1 slot. Number of slots:Maximum 6-bit ASCII characters 1:16, 2:53, 3:90, 4:128, 5:161
+	)
+)
+);
 
+switch($AISformat){
+case "B":
+	$AISformat = $AISformatB;
+	break;
+case "SART":
+	$AISformat = $AISformatSART;
+	break;
+case "A":
+default:
+	$AISformat = $AISformatA;
+};
 $AISsentencies = array();
-foreach($AISformatA[$aisDataClass] as $type => $format){
+foreach($AISformat[$aisDataClass] as $type => $format){
 	//echo "type=$type;\n\n";
 	$aisSent = getNMEAsent($vesselData,substr($type,0,2),$format);
 	//echo "aisSent=$aisSent;\n";
@@ -200,7 +291,7 @@ foreach($format as $key => $field){	// каждое поле, требуемое
 		switch($field[0]){
 		case 'num': 	// число
 			//$field = str_pad(substr(decbin(round($vesselData[$key]*$field[2])),-$field[1]), $field[1], '0', STR_PAD_LEFT);
-			if(isset($vesselData[$key]))	$field = str_pad(substr(decbin(round($vesselData[$key]*$field[2])),-$field[1]), $field[1], '0', STR_PAD_LEFT);
+			if(isset($vesselData[$key]))	$field = str_pad(substr(decbin(round((int)$vesselData[$key]*$field[2])),-$field[1]), $field[1], '0', STR_PAD_LEFT);
 			else $field = str_pad(decbin($field[3]), $field[1], '0', STR_PAD_LEFT);
 			break;
 		case 'str': 	// строка
@@ -224,15 +315,15 @@ foreach($format as $key => $field){	// каждое поле, требуемое
 			$field = str_pad(decbin(mk_ais_lat(@$vesselData[$key],10)), 17, '0', STR_PAD_LEFT);
 			//echo "lat10=$field\n";
 			break;
-		}
-	}
+		};
+	};
 	//else echo "$key: $field;\n\n";
 	$aisSent .= $field;
-}
+};
 
 $aisSent = mk_ais($aisSent);
 return $aisSent;
-} // end function getNMEAsent
+}; // end function getNMEAsent
 
 
 // This functions pick up from https://github.com/ais-one/phpais
