@@ -39,7 +39,7 @@ foreach($inInstrumentsDates as $inInstrumentsData){
 	}
 	if(isset($inInstrumentsData['properties']['rot'])){
 		$instrumentsData['AIS'][$vehicle]['data']['turn'] = (int)filter_var($inInstrumentsData['properties']['rot'],FILTER_SANITIZE_NUMBER_INT); 	// тут чёта сложное...  Rate of turn ROTAIS 0 to +126 = turning right at up to 708° per min or higher 0 to –126 = turning left at up to 708° per min or higher Values between 0 and 708° per min coded by ROTAIS = 4.733 SQRT(ROTsensor) degrees per min where  ROTsensor is the Rate of Turn as input by an external Rate of Turn Indicator (TI). ROTAIS is rounded to the nearest integer value. +127 = turning right at more than 5° per 30 s (No TI available) –127 = turning left at more than 5° per 30 s (No TI available) –128 (80 hex) indicates no turn information available (default). ROT data should not be derived from COG information.
-		if($instrumentsData['AIS'][$vehicle]['data']['turn'] == 0x80) $instrumentsData['AIS'][$vehicle]['data']['turn'] = null;	// -128 ?
+		if($instrumentsData['AIS'][$vehicle]['data']['turn'] == -128) $instrumentsData['AIS'][$vehicle]['data']['turn'] = null;	// -128 ?
 		$instrumentsData['AIS'][$vehicle]['cachedTime']['turn'] = $now;
 		//echo "inInstrumentsData['properties']['rot']={$inInstrumentsData['properties']['rot']}; instrumentsData['AIS'][$vehicle]['data']['turn']={$instrumentsData['AIS'][$vehicle]['data']['turn']};\n";
 	}
@@ -49,10 +49,11 @@ foreach($inInstrumentsDates as $inInstrumentsData){
 		$instrumentsData['AIS'][$vehicle]['cachedTime']['lat'] = $now;
 	}
 	if(isset($inInstrumentsData['properties']['sog'])){
+		//if($mmsi=='276809000') {echo "mmsi: ATLAS\n"; print_r($inInstrumentsData['properties']); echo "\n";};
 		//if($inInstrumentsData['properties']['sog']>=100) echo "inInstrumentsData:{$inInstrumentsData['properties']['mmsi']} {$inInstrumentsData['properties']['sog']}\n";// var_dump($inInstrumentsData); echo "\n";
 		//if($inInstrumentsData['properties']['sog']>1022) $instrumentsData['AIS'][$vehicle]['data']['speed'] = NULL;
-		if($inInstrumentsData['properties']['sog']>102.2) $instrumentsData['AIS'][$vehicle]['data']['speed'] = NULL; 	// у этих людей скорость в узлах?
-		//else $instrumentsData['AIS'][$vehicle]['data']['speed'] = (float)filter_var($inInstrumentsData['properties']['sog'],FILTER_SANITIZE_NUMBER_FLOAT,FILTER_FLAG_ALLOW_FRACTION)*185.2/3600; 	// SOG Speed over ground in m/sec 	(in 1/10 knot steps (0-102.2 knots) 1 023 = not available, 1 022 = 102.2 knots or higher)
+		if($inInstrumentsData['properties']['sog']>=102.2) $instrumentsData['AIS'][$vehicle]['data']['speed'] = NULL; 	// у этих людей скорость в узлах?
+		//else $instrumentsData['AIS'][$vehicle]['data']['speed'] = (float)filter_var($inInstrumentsData['properties']['sog'],FILTER_SANITIZE_NUMBER_FLOAT,FILTER_FLAG_ALLOW_FRACTION)*185.2/3600; 	// SOG Speed over ground in m/sec 	(in 1/10 knot steps (0-102.2 knots) 1 023 = not available, 1 022 = 102.2 knots or higher) Но у некоторых придурков 102.2 вместо 102.3
 		else $instrumentsData['AIS'][$vehicle]['data']['speed'] = (float)filter_var($inInstrumentsData['properties']['sog'],FILTER_SANITIZE_NUMBER_FLOAT,FILTER_FLAG_ALLOW_FRACTION)*1852/3600; 	// у этих людей скорость в узлах?
 		$instrumentsData['AIS'][$vehicle]['cachedTime']['speed'] = $now;
 	}
@@ -134,6 +135,7 @@ foreach($inInstrumentsDates as $inInstrumentsData){
 		if(!$instrumentsData['AIS'][$vehicle]['data']['beam']) $instrumentsData['AIS'][$vehicle]['data']['beam'] = null;
 }
 
+	// FOR TEST
 	//echo "$mmsi shipType={$inInstrumentsData['shipType']}; shiptype={$instrumentsData['AIS'][$vehicle]['data']['shiptype']};\n";
 	//echo "$mmsi destination={$inInstrumentsData['destination']}; destination={$instrumentsData['AIS'][$vehicle]['data']['destination']};\n";
 	//echo "$mmsi course путевой угол={$instrumentsData['AIS'][$vehicle]['data']['course']};\n";
@@ -150,6 +152,11 @@ foreach($inInstrumentsDates as $inInstrumentsData){
 		//echo "referencePointC={$inInstrumentsData['referencePointC']}; to_port={$instrumentsData['AIS'][$vehicle]['data']['to_port']};\n";
 		//echo "referencePointD={$inInstrumentsData['referencePointD']}; to_starboard={$instrumentsData['AIS'][$vehicle]['data']['to_starboard']};\n";
 	//}
+	//if($mmsi=='538008208') {echo "mmsi: Princess Margo\n"; print_r($instrumentsData['AIS'][$vehicle]['data']); echo "\n";};
+	//if($mmsi=='273262130') {echo "mmsi: Liberty\n"; print_r($instrumentsData['AIS'][$vehicle]['data']); echo "\n";};
+	//if($mmsi=='273618550') {echo "mmsi: VITYAZ\n"; print_r($instrumentsData['AIS'][$vehicle]['data']); echo "\n";};
+	//if($mmsi=='276809000') {echo "mmsi: ATLAS\n"; print_r($instrumentsData['AIS'][$vehicle]['data']); echo "\n";};
+	//// FRO TEST
 };
 return $recievedMMSI;
 }; // end function updInstrumentsData
@@ -162,6 +169,7 @@ $noMetaData = array();
 $deletedMMSI = array();
 foreach($instrumentsData['AIS'] as $id => $vehicle){
 	//echo "id=$id; vehicle:";print_r($vehicle);
+	//if($id == '538008208') {echo "Данные Princess Margo старее положенного на ",(($now - $vehicle['timestamp'])-$noVehicleTimeout)," секунд\n";};
 	if(($now - $vehicle['timestamp'])>$noVehicleTimeout) {
 		$deletedMMSI[] = $id;
 		unset($instrumentsData['AIS'][$id]); 	// удалим цель, последний раз обновлявшуюся давно
@@ -180,11 +188,16 @@ foreach($instrumentsData['AIS'] as $id => $vehicle){
 				unset($instrumentsData['AIS'][$id]['data'][$type]);
 				unset($instrumentsData['AIS'][$id]['cachedTime'][$type]);
 				//echo "Данные AIS ".$type." для судна ".$id." совсем протухли на ".($now - $cachedTime)." сек                     \n";
-			}
-		}
-	}
+			};
+		};
+	};
 	if(!@$instrumentsData['AIS'][$id]['data']['shipname']) $noMetaData[] = $id;	// соберём mmsi тех, для кого ещё не получена полная информация
-}
+	// FOR TEST
+	//if($vehicle['data']['heading'] and $vehicle['data']['course']){
+	//	echo "Судно ",$vehicle['data']['shipname']," имеет heading ",$vehicle['data']['heading']," и course ",$vehicle['data']['course'],"\n";
+	//};
+	//// FOR TEST
+};
 return array($noMetaData,$deletedMMSI);
 } // end function chkFreshOfData
 

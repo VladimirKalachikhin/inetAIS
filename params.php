@@ -48,8 +48,8 @@ $inetAIShost = "0.0.0.0";	// Clients connection setting
 $inetAISport = "3800";
 // Если указано, то данные будут отдаваться ещё и gpsdPROXY
 // по умолчальному или указанному адресу
-//$gpsdPROXYhost = '';	// enable gpsdPROXY as client
-//$gpsdPROXYport = '';
+$gpsdPROXYhost = '';	// enable gpsdPROXY as client
+$gpsdPROXYport = '';
 // путь в файловой системе к gpsdPROXY
 // если указано, то будет предпринята попытка запустить gpsdPROXY
 //$gpsdPROXYpath = '../gpsdPROXY';	// file system path to gpsdPROXY. If specified, gpsdPROXY will be tried to run.

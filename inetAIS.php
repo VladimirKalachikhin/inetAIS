@@ -2,7 +2,7 @@
 /*
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.9
+version 0.2.10
 
 Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
 отдать данные gpsdPROXY, кроме обслуживания указанного порта. Если указана переменная $gpsdPROXYpath
@@ -74,9 +74,9 @@ do{
 			else echo ". ";
 		};
 		if($gpsdPROXYsocket) echo "from gpsdPROXY. ";
-		echo "Changed targets ";
+		echo "All targets ",count($instrumentsData['AIS']);
 		if(@count($recievedMMSI)) $countrecievedMMSI = count($recievedMMSI);	// таким образом, в $countrecievedMMSI количество последних когда-то изменённых целей, а не факт, что за последний оборот ничего не произошло
-		echo "$countrecievedMMSI";
+		echo ", changed $countrecievedMMSI";
 		if(@$AISinterestPoints['self']) echo " pos:".round($AISinterestPoints['self']['latitude'],3).",".round($AISinterestPoints['self']['longitude'],3)."   ";
 		else echo "   ";
 		echo "\r";
@@ -164,8 +164,10 @@ do{
 						else {	// это информация AIS
 							$recievedMMSI = array_unique(array_merge($recievedMMSI,updInstrumentsData($extData)));	// плоский массив
 							//echo "имеется целей AIS в instrumentsData ".count($instrumentsData['AIS'])."\n";
+							//if($instrumentsData['AIS']['538008208']) {echo "Имеется Princess Margo\n"; print_r($instrumentsData['AIS']['538008208']['data']); echo "\n";};
 							list($noMetaData,$deletedMMSI) = chkFreshOfData();	// Проверим актуальность данных и получим список тех, для кого нет полной информации. При этом в $recievedMMSI могли бы остаться mmsi удалённых в этом процессе объектов
 							//echo "осталось свежих целей AIS в instrumentsData ".count($instrumentsData['AIS'])."\n";
+							//if($instrumentsData['AIS']['538008208']) {echo "Осталась Princess Margo\n"; print_r($instrumentsData['AIS']['538008208']['data']); echo "\n";};
 							$recievedMMSI = array_diff($recievedMMSI,$deletedMMSI);	// теперь в $recievedMMSI mmsi изменённых целей AIS, оставшихся в $instrumentsData
 						};
 					};
