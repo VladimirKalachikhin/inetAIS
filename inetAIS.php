@@ -1,8 +1,9 @@
 <?php
 /*
+https://www.digitraffic.fi/en/marine-traffic/
 https://meri.digitraffic.fi/api/ais/v1/locations?latitude=60.1688&longitude=24.939&radius=30
 
-version 0.2.10
+version 0.2.11
 
 Если в конфиге указать переменную $gpsdPROXYhost, то демон будет пытаться
 отдать данные gpsdPROXY, кроме обслуживания указанного порта. Если указана переменная $gpsdPROXYpath
@@ -148,7 +149,7 @@ do{
 					if(!is_array($extData)){
 						if($externalProcesses[$procID]['inString'] == 'N;') {}	// оно возвращает это, если в указанной области нет целей AIS
 						//elseif($externalProcesses[$procID]['inString'] == 'no any Signal K resources found') {}	// не удалось получить координаты
-						else echo "The problem '{$externalProcesses[$procID]['inString']}' with external process $procID             \n";
+						else echo "The problem ' {$externalProcesses[$procID]['inString']} ' with external process $procID             \n";
 						continue;	// к следующему потоку
 					}
 					elseif($extData['error']){
@@ -204,7 +205,7 @@ do{
 			if($noMetaData and !is_resource($externalProcesses['getMetaDataProcess']['process'])){	// не запущен процесс получения метаданных
 				//echo "Has ".count($noMetaData)." AIS targets without full metadata                 \n";
 				//echo "noMetaData=";print_r($noMetaData);
-				exec('pkill getMetaData.php');	// убъём, если такой процесс запущен. Нормально он должен был успеть.
+				exec('pkill -f getMetaData.php');	// убъём, если такой процесс запущен. Нормально он должен был успеть.
 				openProcess("$phpCLIexec getMetaData.php",serialize($noMetaData),'getMetaDataProcess');
 				$noMetaData = null;
 			};
@@ -216,7 +217,7 @@ do{
 			$lastGetTPV = time();
 			if(!is_resource(@$externalProcesses['getTPVprocess']['process'])){	// не запущен процесс получения метаданных
 				//echo "Запускаем процесс получения координат         \n";
-				exec('pkill getAISdata.php');	// убъём, если такой процесс запущен. Нормально он должен был успеть.
+				exec('pkill -f getAISdata.php');	// убъём, если такой процесс запущен. Нормально он должен был успеть.
 				openProcess("$phpCLIexec getTPV.php",'','getTPVprocess');
 			};
 		};
