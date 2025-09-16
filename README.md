@@ -4,6 +4,8 @@ Broadcast to LAN of the AIS messages from [digitraffic.fi](https://www.digitraff
 
 We strongly do not recommend using this software  as a replacement of real AIS on the boat. First of all, because of the [declared restrictions](https://www.digitraffic.fi/en/marine-traffic/ais/), secondly, because of the data delay reaching minutes.
 
+This code is written without using AI, "best practices," OOP, and an IDE.
+
 
 version 0.
 
@@ -46,6 +48,11 @@ for daemonise.
 
 Configure your device/software to receive NMEA 0183 from host (may be localhost?) and port (3800 by default) as you set in *params.php*.  
 No need for special configuration to receive data in the [gpsdPROXY](https://github.com/VladimirKalachikhin/gpsdPROXY).
+
+
+## Demo
+There are several [ready-to-use images available](https://github.com/VladimirKalachikhin/GaladrielMap-Demo-image/) that include the inetAIS.
+
 
 ## Support
 [Forum](https://github.com/VladimirKalachikhin/Galadriel-map/discussions)
